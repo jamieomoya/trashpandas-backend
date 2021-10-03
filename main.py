@@ -4,6 +4,7 @@
 from load_omm_data import *
 from propagateorbits import *
 
+import matplotlib.pyplot as plt
 from os.path import exists, getmtime
 from sgp4.api import SGP4_ERRORS, Satrec
 from datetime import datetime, timedelta
@@ -16,7 +17,8 @@ import json
 
 async def main(start_time: datetime, time_step: timedelta):
     # Where the OMM (Orbital Mean elements Message) data is stored
-    omm_file = 'source_data/celestrak_response.xml'
+    # omm_file = 'celestrak_response.xml'
+    omm_file = 'debris.xml'
 
     # Don't spam the CelesTrak API with requests, it doesn't update that often either way
     if exists(omm_file):
@@ -34,25 +36,34 @@ async def main(start_time: datetime, time_step: timedelta):
 
     sim_time = start_time
 
+    fig = plt.figure(1)
+    ax = fig.add_subplot(projection='3d')
+    ax.set_xlim([-40e3, 40e3])
+    ax.set_ylim([-40e3, 40e3])
+    ax.set_zlim([-40e3, 40e3])
+
     # Update orbit position every XX second
     while True:
         e, r, v = await update_sat_pos(sats, sim_time)
         [print(SGP4_ERRORS[int(error)]) for error in e if error != 0]
         print(f'{sim_time}\t{r[0, :, :].squeeze()}')
         # test = json.JSONEncoder.encode(r)
-        df = pd.DataFrame(
-            {
-                "X": r[:, :, 0].squeeze(),
-                "Y": r[:, :, 1].squeeze(),
-                "Z": r[:, :, 2].squeeze(),
-            },
-            index=range(len(r))
-        )
-        with open("test.json", 'w') as f:
-            f.write(df.to_json())
+        # df = pd.DataFrame(
+        #     {
+        #         "X": r[:, :, 0].squeeze(),
+        #         "Y": r[:, :, 1].squeeze(),
+        #         "Z": r[:, :, 2].squeeze(),
+        #     },
+        #     index=range(len(r))
+        # )
+        # with open("test.json", 'w') as f:
+        #     f.write(df.to_json())
+
+        ax.scatter(r[:,:,0], r[:,:,1], r[:,:,2], marker='.')
+        plt.show()
 
         sim_time += time_step
-        await asyncio.sleep(10)
+        await asyncio.sleep(1)
 
 
 def alt_main(start_time: datetime, time_step: timedelta, n_steps: int):
@@ -87,18 +98,18 @@ def alt_main(start_time: datetime, time_step: timedelta, n_steps: int):
 
 
 if __name__ == '__main__':
-    # asyncio.run(main(
-    #     start_time=datetime.utcnow(),
-    #     time_step=timedelta(seconds=10)
-    # ))
-
-    to_web = alt_main(
+    asyncio.run(main(
         start_time=datetime.utcnow(),
-        time_step=timedelta(seconds=10),
-        n_steps=1000
-    )
+        time_step=timedelta(seconds=1)
+    ))
 
-    with open("test.json", "w") as f:
-        f.write(json.dumps(to_web))
+    # to_web = alt_main(
+    #     start_time=datetime.utcnow(),
+    #     time_step=timedelta(seconds=10),
+    #     n_steps=1000
+    # )
+    #
+    # with open("test.json", "w") as f:
+    #     f.write(json.dumps(to_web))
 
 
